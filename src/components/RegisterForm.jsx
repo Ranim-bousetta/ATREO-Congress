@@ -1,4 +1,5 @@
 import { useState } from "react";
+import emailjs from "@emailjs/browser";
 import { registerFields } from "../data/siteData";
 
 const initialForm = {
@@ -14,16 +15,43 @@ const initialForm = {
 
 export default function RegisterForm() {
   const [form, setForm] = useState(initialForm);
-  const [submitted, setSubmitted] = useState(false);
+  const [status, setStatus] = useState("idle");
+  const [errorMessage, setErrorMessage] = useState("");
 
   const handleChange = (event) => {
     const { name, value } = event.target;
     setForm((current) => ({ ...current, [name]: value }));
   };
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
-    setSubmitted(true);
+    setStatus("sending");
+    setErrorMessage("");
+
+    try {
+      await emailjs.send(
+        import.meta.env.VITE_EMAILJS_SERVICE_ID,
+        import.meta.env.VITE_EMAILJS_TEMPLATE_ID,
+        {
+          first_name: form.firstName,
+          last_name: form.lastName,
+          email: form.email,
+          phone: form.phone,
+          speciality: form.speciality,
+          country: form.country,
+          city: form.city,
+          message: form.message,
+        },
+        { publicKey: import.meta.env.VITE_EMAILJS_PUBLIC_KEY },
+      );
+
+      setStatus("success");
+      setForm(initialForm);
+    } catch (error) {
+      console.error(error);
+      setStatus("error");
+      setErrorMessage("Failed to send registration. Please try again.");
+    }
   };
 
   return (
@@ -75,17 +103,27 @@ export default function RegisterForm() {
         })}
 
         <div className="sm:col-span-2 flex flex-col gap-4 pt-2 sm:flex-row sm:items-center sm:justify-between">
-          <button type="submit" className="btn-primary">
-            Submit registration
+          <button
+            type="submit"
+            disabled={status === "sending"}
+            className="btn-primary disabled:opacity-60"
+          >
+            {status === "sending" ? "Sending..." : "Submit registration"}
           </button>
-          {submitted ? (
+
+          {status === "success" && (
             <p className="text-sm font-medium text-emerald-700">
-              Demo form submitted. Replace this with your backend or Formspree
-              endpoint.
+              Registration sent successfully.
             </p>
-          ) : (
+          )}
+
+          {status === "error" && (
+            <p className="text-sm font-medium text-red-600">{errorMessage}</p>
+          )}
+
+          {status === "idle" && (
             <p className="text-sm text-slate-500">
-              This demo currently works as a front-end form only.
+              Your registration will be sent by email.
             </p>
           )}
         </div>
